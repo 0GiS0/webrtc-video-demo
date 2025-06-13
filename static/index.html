@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💬 WebRTC Chat con IA 🤖 | Comunicación en tiempo real 🚀</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="alternate icon" href="/static/favicon-16.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon.png">
+    <link rel="mask-icon" href="/static/favicon.svg" color="#007AFF">
+    
+    <!-- Meta tags adicionales -->
+    <meta name="theme-color" content="#007AFF">
+    <meta name="description" content="Chat en tiempo real utilizando WebRTC y OpenAI">
+</head>
+
+<body>
+    <h1>💬 WebRTC Chat con IA 🤖</h1>
+
+    <button id="start" onclick="start()">Iniciar conexión 🚀</button>
+
+    <!-- Contenedor de videos -->
+    <div id="video-container">
+        <div class="video-wrapper">
+            <video id="localVideo" autoplay muted playsinline></video>
+            <div class="video-label">📹 Video Local</div>
+        </div>
+        <div class="video-wrapper">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <div class="video-label">📺 Video Remoto</div>
+        </div>
+    </div>
+
+    <!-- Chat colapsable -->
+    <div id="chat-section">
+        <button id="toggle-chat" onclick="toggleChat()">📝 Mostrar Chat</button>
+        <div id="chat-content" class="collapsed">
+            <div id="log"></div>
+            <div id="message-section">
+                <input id="message" type="text" placeholder="Escribe tu mensaje aquí...">
+                <button id="send" disabled>Enviar 📤</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+
+</body>
+
+</html>
