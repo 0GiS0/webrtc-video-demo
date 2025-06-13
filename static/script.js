@@ -277,6 +277,16 @@ async function start() {
     // Mostrar badge de conectando desde el inicio
     showConnectingBadge();
     
+    // Abrir automáticamente la sección del chat al iniciar conexión
+    const chatContent = document.getElementById("chat-content");
+    const toggleButton = document.getElementById("toggle-chat");
+    
+    if (chatContent.classList.contains("collapsed")) {
+        chatContent.classList.remove("collapsed");
+        toggleButton.innerHTML = "📝 Ocultar Chat";
+        log("💬 Chat abierto al iniciar conexión");
+    }
+    
     try {
         // Solicitar acceso a la cámara y micrófono
         log("🎥 Solicitando acceso a cámara y micrófono...");
