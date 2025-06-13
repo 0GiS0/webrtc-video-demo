@@ -4,6 +4,9 @@ var remoteDataChannel = null;
 
 var connectionId = null;
 
+// Estado del análisis de gestos
+var gestureAnalysisActive = false;
+
 // Función para mostrar el badge del estado de conexión
 function showConnectionBadge(id) {
     connectionId = id;
@@ -310,3 +313,29 @@ function toggleChat() {
         toggleButton.innerHTML = "📝 Mostrar Chat";
     }
 }
+
+// Función simplificada para controlar el análisis
+function toggleGestureAnalysis() {
+    if (!dataChannel || dataChannel.readyState !== 'open') {
+        log('⚠️ Conecta primero antes de activar análisis de gestos');
+        return;
+    }
+    
+    // Enviar comando al servidor
+    const command = gestureAnalysisActive ? 'stop_gesture_analysis' : 'start_gesture_analysis';
+    dataChannel.send(`🤏 ${command}`);
+    
+    gestureAnalysisActive = !gestureAnalysisActive;
+    updateGestureButton();
+    
+    log(`🤏 Análisis de gestos ${gestureAnalysisActive ? 'iniciado' : 'detenido'}`);
+}
+
+function updateGestureButton() {
+    const button = document.getElementById('gestureToggle');
+    if (button) {
+        button.textContent = gestureAnalysisActive ? '⏸️ Detener Gestos' : '🤏 Analizar Gestos';
+        button.style.backgroundColor = gestureAnalysisActive ? '#dc3545' : '#28a745';
+    }
+}
+

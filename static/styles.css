@@ -263,6 +263,9 @@ input[type="text"]::placeholder {
     overflow: hidden;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .video-wrapper:hover {
@@ -287,6 +290,25 @@ video {
     font-size: 0.85em;
     font-weight: 500;
     backdrop-filter: blur(10px);
+}
+
+/* Botón de análisis de gestos */
+#gestureToggle {
+    margin-top: 10px;
+    padding: 8px 16px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(40, 167, 69, 0.3);
+}
+
+#gestureToggle:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
 }
 
 /* Chat colapsable */

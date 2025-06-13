@@ -13,6 +13,8 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from gesture_analyzer import GestureAnalysisTrack
+
 
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()
@@ -103,6 +105,9 @@ async def offer(request):
 
     # Canal para la comunicación bidireccional de datos
     data_channel = peer_connection.createDataChannel("chat")
+    
+    # Almacenar el canal de datos en el peer_connection para acceso global
+    peer_connection.data_channel = data_channel
 
     # Este evento se dispara cuando se crea un canal de datos
     @peer_connection.on('datachannel')
@@ -120,18 +125,48 @@ async def offer(request):
         @channel.on('message')
         def on_message(message):
             console.log(f"📩 Mensaje recibido: {message}")
-            # Se manda una respuesta al cliente
-            # channel.send(f"📢 Eco desde el servidor: {message}")
-            response = client.chat.completions.create(
-                model=os.getenv("MODEL_FOR_CHAT"),
-                messages=[
-                    {"role": "system", "content": "Eres un asistente útil."},
-                    {"role": "user", "content": message}
-                ]
-            )
-            response_message = response.choices[0].message.content
-            console.log(f"🤖 Respuesta del modelo: {response_message}")
-            channel.send(f"🤖 Respuesta del modelo: {response_message}")
+            
+            # Manejar comandos de análisis de gestos
+            if message.startswith("🤏 start_gesture_analysis"):
+                console.log("🟢 Comando: activar análisis de gestos")
+                if hasattr(peer_connection, 'gesture_analyzer'):
+                    peer_connection.gesture_analyzer.enable_analysis()
+                    # Asegurar que el canal esté configurado
+                    if not peer_connection.gesture_analyzer.data_channel:
+                        peer_connection.gesture_analyzer.set_data_channel(channel)
+                    channel.send("🤏 ✅ Análisis de gestos activado en el servidor")
+                    console.log(f"🤏 Análisis de gestos activado para {peer_connection_id}")
+                else:
+                    channel.send("🤏 ❌ No hay analizador de gestos disponible")
+                    console.log(f"❌ No se encontró analizador de gestos para {peer_connection_id}")
+                return
+                
+            elif message.startswith("🤏 stop_gesture_analysis"):
+                console.log("� Comando: desactivar análisis de gestos")
+                if hasattr(peer_connection, 'gesture_analyzer'):
+                    peer_connection.gesture_analyzer.disable_analysis()
+                    channel.send("🤏 ⏸️ Análisis de gestos desactivado en el servidor")
+                    console.log(f"🤏 Análisis de gestos desactivado para {peer_connection_id}")
+                else:
+                    channel.send("🤏 ❌ No hay analizador de gestos disponible")
+                    console.log(f"❌ No se encontró analizador de gestos para {peer_connection_id}")
+                return
+            
+            # Si no es un comando de gestos, procesar como mensaje normal con IA
+            try:
+                response = client.chat.completions.create(
+                    model=os.getenv("MODEL_FOR_CHAT"),
+                    messages=[
+                        {"role": "system", "content": "Eres un asistente útil."},
+                        {"role": "user", "content": message}
+                    ]
+                )
+                response_message = response.choices[0].message.content
+                console.log(f"🤖 Respuesta del modelo: {response_message}")
+                channel.send(f"🤖 Respuesta del modelo: {response_message}")
+            except Exception as e:
+                console.log(f"❌ Error con IA: {e}")
+                channel.send(f"📢 Echo desde servidor: {message}")
 
         # Este evento se dispara cuando el canal de datos se cierra
         @data_channel.on('close')
@@ -155,13 +190,20 @@ async def offer(request):
         # Analizar video en busca de gestos o acciones
         if track.kind == 'video':
             console.log("📹 Procesando video para detección de gestos...")
+
+            # Se crea una instancia de GestureAnalysisTrack para analizar la pista de video
+            # Pasamos el canal de datos si está disponible
+            data_channel = getattr(peer_connection, 'data_channel', None)
+            gesture_analyzer = GestureAnalysisTrack(track, peer_connection_id, data_channel)
             
-            # Recuperar la peer connection ID
-            console.log(f"🆔 ID de conexión peer: {peer_connection_id}")
+            # Almacenar la referencia en el peer_connection para accederla desde los mensajes
+            peer_connection.gesture_analyzer = gesture_analyzer
             
-            # Enviar de vuelta la pista de video al cliente
-            peer_connection.addTrack(track)
-            console.log("🔄 Pista de video reenviada al cliente")
+            console.log(f"🤏 Analizador de gestos creado para {peer_connection_id} con canal: {data_channel is not None}")
+        
+            # Enviar de vuelta la pista de video al cliente usando el analizador
+            peer_connection.addTrack(gesture_analyzer)
+            console.log("🔄 Pista de video reenviada al cliente con análisis de gestos")
             
 
             @track.on('ended')
