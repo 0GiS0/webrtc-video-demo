@@ -4,6 +4,7 @@ import datetime
 import socket
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription
+from aiortc.contrib.media import MediaRelay
 from rich.console import Console
 from aiohttp import web
 import os
@@ -33,6 +34,9 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # Diccionario para almacenar conexiones activas
 active_connections = set()
+
+# Media relay para manejar múltiples flujos de medios
+media_relay = MediaRelay()
 
 # Función para enviar mensajes periódicos
 async def send_periodic_messages(channel, peer_connection_id):
@@ -147,6 +151,28 @@ async def offer(request):
     @peer_connection.on('track')
     def on_track(track):
         console.log(f"🎵 Pista recibida: {track.kind}")
+        
+        # Analizar video en busca de gestos o acciones
+        if track.kind == 'video':
+            console.log("📹 Procesando video para detección de gestos...")
+            
+            # Recuperar la peer connection ID
+            console.log(f"🆔 ID de conexión peer: {peer_connection_id}")
+            
+            # Enviar de vuelta la pista de video al cliente
+            peer_connection.addTrack(track)
+            console.log("🔄 Pista de video reenviada al cliente")
+            
+
+            @track.on('ended')
+            def on_track_ended():
+                console.log("🔴 Pista de video finalizada")
+                # Se elimina al peer de la lista de conexiones activas
+                console.log(f"🗑️ Eliminando {peer_connection_id} de conexiones activas")
+                active_connections.discard(peer_connection_id)
+                console.log(f"📊 Conexiones activas: {len(active_connections)}")
+
+        
 
     # Se establece la descripción remota. Es decir, la oferta SDP que se recibe del cliente.
     await peer_connection.setRemoteDescription(offer_sdp)

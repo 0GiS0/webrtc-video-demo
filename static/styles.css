@@ -186,6 +186,25 @@ input[type="text"]::placeholder {
     background: linear-gradient(135deg, #0056D6, #003d99);
 }
 
+/* Estados específicos del badge */
+#connection-badge.connecting {
+    background: linear-gradient(135deg, #ff6b35, #f7931e);
+    animation: connectingPulse 2s infinite ease-in-out;
+}
+
+#connection-badge.connecting:hover {
+    background: linear-gradient(135deg, #e55a2b, #d4841a);
+}
+
+#connection-badge.connected {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    animation: connectedSuccess 0.6s ease-out;
+}
+
+#connection-badge.connected:hover {
+    background: linear-gradient(135deg, #218838, #1ba085);
+}
+
 /* Animación de entrada del badge */
 @keyframes badgeSlideIn {
     0% {
@@ -198,6 +217,33 @@ input[type="text"]::placeholder {
     100% {
         opacity: 1;
         transform: translateY(0) scale(1);
+    }
+}
+
+/* Animación de pulso para estado conectando */
+@keyframes connectingPulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+}
+
+/* Animación de éxito para estado conectado */
+@keyframes connectedSuccess {
+    0% {
+        transform: scale(1);
+        background: linear-gradient(135deg, #ff6b35, #f7931e);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+        background: linear-gradient(135deg, #28a745, #20c997);
     }
 }
 

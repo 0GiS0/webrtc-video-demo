@@ -4,7 +4,7 @@ var remoteDataChannel = null;
 
 var connectionId = null;
 
-// Función para mostrar el badge del ID de conexión
+// Función para mostrar el badge del estado de conexión
 function showConnectionBadge(id) {
     connectionId = id;
 
@@ -21,6 +21,34 @@ function showConnectionBadge(id) {
 
     // Añadir el badge al body para que sea flotante
     document.body.appendChild(badge);
+}
+
+// Función para mostrar el estado de "Conectando..."
+function showConnectingBadge() {
+    // Remover badge existente si existe
+    const existingBadge = document.getElementById("connection-badge");
+    if (existingBadge) {
+        existingBadge.remove();
+    }
+
+    // Crear el badge de conectando
+    const badge = document.createElement("div");
+    badge.id = "connection-badge";
+    badge.innerHTML = `⏳ Conectando...`;
+    badge.classList.add("connecting");
+
+    // Añadir el badge al body para que sea flotante
+    document.body.appendChild(badge);
+}
+
+// Función para actualizar el badge a conectado
+function updateBadgeToConnected(id) {
+    const existingBadge = document.getElementById("connection-badge");
+    if (existingBadge) {
+        existingBadge.innerHTML = `🆔 ${id}`;
+        existingBadge.classList.remove("connecting");
+        existingBadge.classList.add("connected");
+    }
 }
 
 
@@ -138,9 +166,10 @@ async function createPeerConnection(localStream = null) {
         }
         else if (message.includes("🆔")) {
             log("🆔 ID de conexión recibido:", message);
-            // Si el mensaje contiene un ID de conexión, mostrar el badge
-            const connectionId = message.split("🆔 ")[1];
-            showConnectionBadge(connectionId);
+            // Si el mensaje contiene un ID de conexión, actualizar el badge a conectado
+            const connectionIdReceived = message.split("🆔 ")[1];
+            connectionId = connectionIdReceived;
+            updateBadgeToConnected(connectionIdReceived);
         }
         else {
             log("📥 Mensaje recibido:", message);
@@ -171,11 +200,17 @@ async function createPeerConnection(localStream = null) {
             const message = event.data;
             // Distinguir entre diferentes tipos de mensajes del servidor
             if (message.includes("🤖 Mensaje automático")) {
-                log("� Mensaje automático del servidor:", message);
+                log("🕐 Mensaje automático del servidor:", message);
             } else if (message.includes("📢 Echo desde servidor")) {
                 log("🔄 Echo del servidor:", message);
             } else if (message.includes("🎉")) {
                 log("👋 Mensaje de bienvenida:", message);
+            } else if (message.includes("🆔")) {
+                log("🆔 ID de conexión recibido:", message);
+                // Si el mensaje contiene un ID de conexión, actualizar el badge a conectado
+                const connectionIdReceived = message.split("🆔 ")[1];
+                connectionId = connectionIdReceived;
+                updateBadgeToConnected(connectionIdReceived);
             } else {
                 log("💬 Mensaje recibido del servidor:", message);
             }
@@ -236,6 +271,9 @@ async function negotiate() {
 
 // Esta función se ejecuta cuando se hace clic en el botón "Iniciar conexión"
 async function start() {
+    // Mostrar badge de conectando desde el inicio
+    showConnectingBadge();
+    
     try {
         // Solicitar acceso a la cámara y micrófono
         log("🎥 Solicitando acceso a cámara y micrófono...");
