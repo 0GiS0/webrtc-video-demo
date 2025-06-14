@@ -8,6 +8,8 @@ import json
 import re
 from rich.console import Console
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -36,26 +38,36 @@ class GestureAnalysisTrack(VideoStreamTrack):
         self.peer_connection_id = peer_connection_id
         self.data_channel = data_channel
         self.last_analysis_time = 0
-        self.analysis_interval = 5.0  # Analizar cada 5 segundos inicialmente
+        self.analysis_interval = 8.0  # Analizar cada 8 segundos para reducir lag
         self.analysis_enabled = False  # Inicia desactivado
         self.confidence_threshold = 60  # Reducir umbral para detectar más gestos
+        self.analyzing = False  # Flag para evitar análisis simultáneos
+        self.frame_skip_count = 0  # Contador para saltar frames
+        self.executor = ThreadPoolExecutor(max_workers=1)  # Un solo hilo para análisis
         
         console.log(f"🤏 GestureAnalysisTrack creado para {peer_connection_id} - Canal: {'✅' if data_channel else '❌'}")
         console.log(f"🤏 Configuración inicial: intervalo={self.analysis_interval}s, umbral={self.confidence_threshold}%")
         
     async def recv(self):
-        """Recibe frame y opcionalmente lo analiza"""
+        """Recibe frame y opcionalmente lo analiza de forma no bloqueante"""
         frame = await self.track.recv()
         
-        # Solo analizar si está habilitado
-        if self.analysis_enabled:
+        # Solo analizar si está habilitado y no hay análisis en curso
+        if self.analysis_enabled and not self.analyzing:
             current_time = time.time()
-            if current_time - self.last_analysis_time >= self.analysis_interval:
+            
+            # Saltar frames ocasionalmente para mantener fluidez
+            self.frame_skip_count += 1
+            if (current_time - self.last_analysis_time >= self.analysis_interval and 
+                self.frame_skip_count % 10 == 0):  # Solo cada 10 frames
+                
                 self.last_analysis_time = current_time
-                console.log(f"🔍 Frame disponible para análisis - {self.peer_connection_id} (habilitado: {self.analysis_enabled})")
-                # Analizar de forma asíncrona para no bloquear el video
-                asyncio.create_task(self.analyze_frame(frame))
+                self.analyzing = True
+                
+                # Procesar en background sin bloquear
+                asyncio.create_task(self._analyze_frame_background(frame))
         
+        # Siempre devolver el frame inmediatamente
         return frame
     
     async def analyze_frame(self, frame):
@@ -220,7 +232,69 @@ class GestureAnalysisTrack(VideoStreamTrack):
         """Cambia el umbral de confianza"""
         self.confidence_threshold = max(0, min(100, threshold))  # Entre 0 y 100
         console.log(f"🎯 Umbral de confianza cambiado a {self.confidence_threshold}% para {self.peer_connection_id}")
+    
+    async def _analyze_frame_background(self, frame):
+        """Analiza un frame en background usando ThreadPoolExecutor"""
+        try:
+            console.log(f"🔍 Iniciando análisis en background para {self.peer_connection_id}")
+            
+            # Ejecutar el procesamiento pesado en un hilo separado
+            loop = asyncio.get_event_loop()
+            frame_data = await loop.run_in_executor(
+                self.executor, 
+                self._process_frame_sync, 
+                frame
+            )
+            
+            if frame_data and frame_data.get('image_base64'):
+                # Analizar con OpenAI de forma asíncrona
+                result = await self.analyze_with_openai(frame_data['image_base64'])
+                
+                # Solo reportar si supera el umbral de confianza
+                if result and result.get('gesture') and result.get('confidence', 0) >= self.confidence_threshold:
+                    console.log(f"✅ Gesto detectado en background: {result}")
+                    await self.send_gesture_result(result)
+                else:
+                    console.log(f"⚪ Análisis completado sin gestos detectados")
+            
+        except Exception as e:
+            console.log(f"❌ Error en análisis background para {self.peer_connection_id}: {e}")
+        finally:
+            self.analyzing = False  # Liberar el flag
+    
+    def _process_frame_sync(self, frame):
+        """Procesa el frame de forma síncrona en un hilo separado"""
+        try:
+            # Convertir frame a imagen BGR con resolución reducida
+            img = frame.to_ndarray(format="bgr24")
+            
+            # Reducir significativamente la resolución para análisis más rápido
+            height, width = img.shape[:2]
+            target_width = 320  # Resolución muy reducida
+            if width > target_width:
+                scale = target_width / width
+                new_width = int(width * scale)
+                new_height = int(height * scale)
+                img = cv2.resize(img, (new_width, new_height))
+            
+            # Convertir a JPEG con calidad reducida para análisis más rápido
+            _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 60])
+            img_base64 = base64.b64encode(buffer).decode('utf-8')
+            
+            console.log(f"📸 Frame procesado: {new_width}x{new_height}, {len(img_base64)} chars")
+            
+            # Analizar con OpenAI (esta parte sigue siendo asíncrona)
+            return asyncio.run(self.analyze_with_openai(img_base64))
+            
+        except Exception as e:
+            console.log(f"❌ Error procesando frame: {e}")
+            return None
 
+    def cleanup(self):
+        """Limpia recursos del analizador"""
+        if hasattr(self, 'executor'):
+            self.executor.shutdown(wait=False)
+            console.log(f"🧹 Recursos limpiados para {self.peer_connection_id}")
 
 class GestureAnalyzer:
     """

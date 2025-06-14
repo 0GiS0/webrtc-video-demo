@@ -171,6 +171,9 @@ async def offer(request):
         @data_channel.on('close')
         def on_data_channel_close():
             console.log("🔴 Canal de datos cerrado")
+            # Limpiar recursos del analizador de gestos
+            if hasattr(peer_connection, 'gesture_analyzer'):
+                peer_connection.gesture_analyzer.cleanup()
             # Se elimina al peer de la lista de conexiones activas
             console.log(f"🗑️ Eliminando {peer_connection_id} de conexiones activas")
             active_connections.discard(peer_connection_id)
@@ -208,6 +211,9 @@ async def offer(request):
             @track.on('ended')
             def on_track_ended():
                 console.log("🔴 Pista de video finalizada")
+                # Limpiar recursos del analizador de gestos
+                if hasattr(peer_connection, 'gesture_analyzer'):
+                    peer_connection.gesture_analyzer.cleanup()
                 # Se elimina al peer de la lista de conexiones activas
                 console.log(f"🗑️ Eliminando {peer_connection_id} de conexiones activas")
                 active_connections.discard(peer_connection_id)
