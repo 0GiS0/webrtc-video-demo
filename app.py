@@ -26,7 +26,6 @@ client = OpenAI(
     api_key=os.getenv("API_KEY")
 )
 
-
 # Crea la aplicación web con aiohttp
 app = web.Application()
 # Configura la consola para imprimir mensajes
@@ -155,7 +154,7 @@ async def offer(request):
             # Si no es un comando de gestos, procesar como mensaje normal con IA
             try:
                 response = client.chat.completions.create(
-                    model=os.getenv("MODEL_FOR_CHAT"),
+                    model=os.getenv("MODEL"),
                     messages=[
                         {"role": "system", "content": "Eres un asistente útil."},
                         {"role": "user", "content": message}
@@ -269,7 +268,7 @@ if __name__ == '__main__':
     console.log("🔥 Si tienes problemas de acceso, verifica:")
     console.log("   • Firewall del sistema (puerto 8000 abierto)")
     console.log("   • Ambos dispositivos en la misma red WiFi")
-    console.log("   • Acepta el certificado SSL 'inseguro' en el navegador")
+    console.log("   • Acepta el certificado SSL 'inseguro' en el navegador")    
     console.log("=" * 60)
     
     web.run_app(app, host='0.0.0.0', port=port, ssl_context=ssl_context)

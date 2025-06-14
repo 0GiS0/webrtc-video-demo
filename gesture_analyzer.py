@@ -100,9 +100,16 @@ class GestureAnalysisTrack(VideoStreamTrack):
     async def analyze_with_openai(self, image_base64):
         """Envía imagen a OpenAI Vision API para análisis de gestos"""
         try:
-            console.log(f"🧠 Modelo para analizar {os.getenv("MODEL_FOR_VISION")}")
+            console.log(f"🧠 Modelo para analizar {os.getenv('MODEL')}")
+            console.log(f"🧠 Endpoint para analizar {os.getenv('ENDPOINT_URL')}")
+            
+            
+            # Medir tiempo de respuesta
+            start_time = time.time()
+            console.log(f"🕒 Enviando imagen a OpenAI para análisis...")
+            
             response = client.chat.completions.create(
-                model=os.getenv("MODEL_FOR_VISION"),
+                model=os.getenv("MODEL"),
                 messages=[
                     {
                         "role": "user",
@@ -145,7 +152,7 @@ class GestureAnalysisTrack(VideoStreamTrack):
                 max_tokens=200,
                 temperature=0.1
             )
-            
+            console.log(f"🕒 Tiempo de respuesta: {time.time() - start_time:.2f} segundos")
             result_text = response.choices[0].message.content.strip()
             
             # Extraer JSON de la respuesta
