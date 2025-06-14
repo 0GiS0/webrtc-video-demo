@@ -100,8 +100,9 @@ class GestureAnalysisTrack(VideoStreamTrack):
     async def analyze_with_openai(self, image_base64):
         """Envía imagen a OpenAI Vision API para análisis de gestos"""
         try:
+            console.log(f"🧠 Modelo para analizar {os.getenv("MODEL_FOR_VISION")}")
             response = client.chat.completions.create(
-                model="gpt-4.1",
+                model=os.getenv("MODEL_FOR_VISION"),
                 messages=[
                     {
                         "role": "user",
