@@ -1,14 +1,12 @@
 import cv2
 from aiortc import VideoStreamTrack
 import asyncio
-import openai
 import base64
 import time
 import json
 import re
 from rich.console import Console
 import os
-import threading
 from concurrent.futures import ThreadPoolExecutor
 
 from dotenv import load_dotenv
@@ -16,20 +14,20 @@ from openai import OpenAI
 
 
 # Cargar variables de entorno desde el archivo .env
-load_dotenv()
+load_dotenv(override=True)
 
 # Crear cliente de OpenAI
 # Asegúrate de tener las variables de entorno ENDPOINT_URL y API_KEY configuradas
 client = OpenAI(
     base_url=os.getenv("ENDPOINT_URL"),
-    api_key=os.getenv("API_KEY")
+    api_key=os.getenv("API_KEY")    
 )
 
 console = Console()
 
 class GestureAnalysisTrack(VideoStreamTrack):
     """
-    Track de video que analiza gestos en tiempo real usando OpenAI Vision API
+    Track de video que analiza gestos en tiempo real usando modelos de inteligencia artificial generativa
     """
     
     def __init__(self, track, peer_connection_id, data_channel=None):
@@ -38,7 +36,7 @@ class GestureAnalysisTrack(VideoStreamTrack):
         self.peer_connection_id = peer_connection_id
         self.data_channel = data_channel
         self.last_analysis_time = 0
-        self.analysis_interval = 8.0  # Analizar cada 8 segundos para reducir lag
+        self.analysis_interval = 2.0  # Analizar cada 8 segundos para reducir lag
         self.analysis_enabled = False  # Inicia desactivado
         self.confidence_threshold = 60  # Reducir umbral para detectar más gestos
         self.analyzing = False  # Flag para evitar análisis simultáneos
@@ -49,7 +47,7 @@ class GestureAnalysisTrack(VideoStreamTrack):
         console.log(f"🤏 Configuración inicial: intervalo={self.analysis_interval}s, umbral={self.confidence_threshold}%")
         
     async def recv(self):
-        """Recibe frame y opcionalmente lo analiza de forma no bloqueante"""
+        """Recibe un frame y, si corresponde, inicia análisis de gestos en background sin bloquear"""
         frame = await self.track.recv()
         
         # Solo analizar si está habilitado y no hay análisis en curso
@@ -79,7 +77,7 @@ class GestureAnalysisTrack(VideoStreamTrack):
             img = frame.to_ndarray(format="bgr24")
             console.log(f"📏 Dimensiones del frame: {img.shape}")
             
-            # Redimensionar para optimizar (opcional)
+            # Redimensionar para optimizar
             height, width = img.shape[:2]
             if width > 640:
                 scale = 640 / width
@@ -92,11 +90,11 @@ class GestureAnalysisTrack(VideoStreamTrack):
             _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 80])
             img_base64 = base64.b64encode(buffer).decode('utf-8')
             console.log(f"📸 Frame convertido a base64 ({len(img_base64)} caracteres)")
-            
-            # Analizar con OpenAI
-            console.log(f"🤖 Enviando a OpenAI para análisis...")
-            result = await self.analyze_with_openai(img_base64)
-            
+
+            # Analizar con IA
+            console.log(f"🤖 Enviando a IA para análisis...")
+            result = await self.analyze_with_ai(img_base64)
+
             # Solo reportar si supera el umbral de confianza
             if result.get('gesture') and result.get('confidence', 0) >= self.confidence_threshold:
                 console.log(f"✅ Gesto detectado: {result}")
@@ -109,24 +107,75 @@ class GestureAnalysisTrack(VideoStreamTrack):
             import traceback
             console.log(f"📍 Traceback: {traceback.format_exc()}")
     
-    async def analyze_with_openai(self, image_base64):
-        """Envía imagen a OpenAI Vision API para análisis de gestos"""
+    async def analyze_with_ai(self, image_base64):
+        """Envía imagen a un modelo de IA para análisis de gestos"""
         try:
             console.log(f"🧠 Modelo para analizar {os.getenv('MODEL')}")
             console.log(f"🧠 Endpoint para analizar {os.getenv('ENDPOINT_URL')}")
             
             # Medir tiempo de respuesta
             start_time = time.time()
-            console.log(f"🕒 Enviando imagen ({len(image_base64)} chars) a OpenAI para análisis...")
+            console.log(f"🕒 Enviando imagen ({len(image_base64)} chars) a IA para análisis...")
+
+            # response = client.chat.completions.create(
+            #     model="openai/gpt-4.1-mini",
+            #     messages=[
+            #         {
+            #             "role": "user",
+            #             "content": [
+            #                 {
+            #                     "type": "text",
+            #                     "text": """🤏 Analiza esta imagen y detecta gestos de manos claramente visibles.
+                                
+            #                     Responde ÚNICAMENTE con un JSON válido en este formato:
+            #                     {
+            #                         "gesture": "nombre_del_gesto",
+            #                         "confidence": 85,
+            #                         "description": "breve descripción",
+            #                         "emoji": "👍"
+            #                     }
+                                
+            #                     Gestos a detectar (solo si son muy claros y evidentes):
+            #                     - 👍 pulgar_arriba (pulgar hacia arriba, otros dedos cerrados)
+            #                     - 👎 pulgar_abajo (pulgar hacia abajo, otros dedos cerrados)
+            #                     - 👌 ok (círculo con pulgar e índice, otros dedos extendidos)
+            #                     - ✌️ victoria (índice y medio extendidos en V, otros cerrados)
+            #                     - ✊ puño (todos los dedos cerrados en puño)
+            #                     - ✋ stop (palma abierta hacia la cámara, dedos extendidos)
+            #                     - 👋 saludo (mano abierta moviéndose o en posición de saludo)
+            #                     - 🤟 rock (meñique, índice y pulgar extendidos)
+            #                     - 🤏 pellizco (pulgar e índice casi tocándose)
+            #                     - 👏 aplauso (dos manos aplaudiendo o palmas juntas)
+            #                     - 🤝 apretón (dos manos juntas en saludo)
+            #                     - 🙏 gracias (palmas juntas en posición de oración)
+            #                     - 🤘 rock_on (índice y meñique extendidos)
+            #                     - 🫶 corazón (manos formando un corazón)
+            #                     - 👊 puño_cerrado (puño hacia adelante)
+                                
+            #                     IMPORTANTE: Solo detecta gestos si la confianza es mayor al 70%. Si no hay gestos claros o la imagen es borrosa, usa "gesture": null"""
+            #                 },
+            #                 {
+            #                     "type": "image_url",
+            #                     "image_url": {
+            #                         "url": f"data:image/jpeg;base64,{image_base64}"
+            #                     }
+            #                 }
+            #             ]
+            #         }
+            #     ],
+            #     max_tokens=200,
+            #     temperature=0.1
+            # )
             
-            response = client.chat.completions.create(
-                model="openai/gpt-4.1-mini",
-                messages=[
+            
+            response = client.responses.create(
+                model=os.getenv("MODEL"),
+                input=[
                     {
                         "role": "user",
                         "content": [
                             {
-                                "type": "text",
+                                "type": "input_text",
                                 "text": """🤏 Analiza esta imagen y detecta gestos de manos claramente visibles.
                                 
                                 Responde ÚNICAMENTE con un JSON válido en este formato:
@@ -157,19 +206,17 @@ class GestureAnalysisTrack(VideoStreamTrack):
                                 IMPORTANTE: Solo detecta gestos si la confianza es mayor al 70%. Si no hay gestos claros o la imagen es borrosa, usa "gesture": null"""
                             },
                             {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{image_base64}"
-                                }
+                                "type": "input_image",
+                                "image_url":  f"data:image/jpeg;base64,{image_base64}"                                
                             }
                         ]
                     }
-                ],
-                max_tokens=200,
-                temperature=0.1
+                ]
             )
+            
             console.log(f"🕒 Tiempo de respuesta: {time.time() - start_time:.2f} segundos")
-            result_text = response.choices[0].message.content.strip()
+            # result_text = response.choices[0].message.content.strip()
+            result_text = response.output_text
             
             # Extraer JSON de la respuesta
             json_match = re.search(r'\{.*\}', result_text, re.DOTALL)
@@ -183,10 +230,10 @@ class GestureAnalysisTrack(VideoStreamTrack):
                 return {"gesture": None, "confidence": 0}
                 
         except json.JSONDecodeError as e:
-            console.log(f"❌ Error parseando JSON de OpenAI: {e}")
+            console.log(f"❌ Error parseando JSON de IA: {e}")
             return {"gesture": None, "confidence": 0}
         except Exception as e:
-            console.log(f"❌ Error con OpenAI Vision API: {e}")
+            console.log(f"❌ Error con IA: {e}")
             return {"gesture": None, "confidence": 0}
     
     async def send_gesture_result(self, result):
@@ -271,7 +318,7 @@ class GestureAnalysisTrack(VideoStreamTrack):
             
             if frame_data and frame_data.get('image_base64'):
                 # Analizar con OpenAI de forma asíncrona
-                result = await self.analyze_with_openai(frame_data['image_base64'])
+                result = await self.analyze_with_ai(frame_data['image_base64'])
                 
                 # Solo reportar si supera el umbral de confianza
                 if result and result.get('gesture') and result.get('confidence', 0) >= self.confidence_threshold:

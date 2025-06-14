@@ -293,17 +293,17 @@ async function negotiate() {
         // Esto es importante para asegurarse de que todos los candidatos ICE se hayan recolectado antes de enviar la oferta al servidor.
         // Los ICE candidates son necesarios para establecer la conexión entre los pares.
         // Pueden ser locales o remotos, y se utilizan para encontrar la mejor ruta de comunicación entre los pares.
-        log("⏳ Esperando a que se recolecten todos los ICE candidates...");
-        await new Promise((resolve) => {
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate === null) {
-                    log("✅ Todos los ICE candidates han sido recolectados");
-                    resolve();
-                } else {
-                    log(`🥇 Nuevo ICE candidate de tipo: ${event.candidate.type}`, event.candidate);
-                }
-            };
-        });
+        // log("⏳ Esperando a que se recolecten todos los ICE candidates...");
+        // await new Promise((resolve) => {
+        //     peerConnection.onicecandidate = (event) => {
+        //         if (event.candidate === null) {
+        //             log("✅ Todos los ICE candidates han sido recolectados");
+        //             resolve();
+        //         } else {
+        //             log(`🥇 Nuevo ICE candidate de tipo: ${event.candidate.type}`, event.candidate);
+        //         }
+        //     };
+        // });
 
         //Enviar la oferta al servidor para hacer la conexión
         const response = await fetch("/offer", {
