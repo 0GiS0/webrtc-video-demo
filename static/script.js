@@ -159,6 +159,8 @@ async function createPeerConnection(localStream = null) {
     // Se configurar el evento onmessage del canal de datos
     dataChannel.onmessage = (event) => {
         const message = event.data;
+        console.log("🔍 DEBUG: Mensaje recibido:", message); // DEBUG LOG
+        
         // Distinguir entre diferentes tipos de mensajes del servidor
         if (message.includes("🤖 Mensaje automático")) {
             log("🕐 Mensaje automático del servidor:", message);
@@ -166,15 +168,25 @@ async function createPeerConnection(localStream = null) {
             log("📢 Echo del servidor:", message);
         } else if (message.includes("🎉")) {
             log("👋 Mensaje de bienvenida:", message);
-        }
-        else if (message.includes("🆔")) {
+        } else if (message.startsWith("GESTURE_ANIMATION:")) {
+            console.log("🎭 DEBUG: Detectado mensaje de animación:", message); // DEBUG LOG
+            // Manejar animación de gesto
+            const parts = message.split(":");
+            if (parts.length >= 2) {
+                const emoji = parts[1];
+                const gestureName = parts[2] || "";
+                console.log("🎭 DEBUG: Mostrando animación:", emoji, gestureName); // DEBUG LOG
+                showGestureAnimation(emoji, gestureName);
+            }
+        } else if (message.includes("🤏")) {
+            log("🤏 Análisis de gestos:", message);
+        } else if (message.includes("🆔")) {
             log("🆔 ID de conexión recibido:", message);
             // Si el mensaje contiene un ID de conexión, actualizar el badge a conectado
             const connectionIdReceived = message.split("🆔 ")[1];
             connectionId = connectionIdReceived;
             updateBadgeToConnected(connectionIdReceived);
-        }
-        else {
+        } else {
             log("📥 Mensaje recibido:", message);
         }
     };
@@ -208,7 +220,17 @@ async function createPeerConnection(localStream = null) {
                 log("🔄 Echo del servidor:", message);
             } else if (message.includes("🎉")) {
                 log("👋 Mensaje de bienvenida:", message);
-            } else if (message.includes("🆔")) {
+            } else if (message.includes("🤏")) {
+            log("🤏 Análisis de gestos:", message);
+        } else if (message.startsWith("GESTURE_ANIMATION:")) {
+            // Manejar animación de gesto
+            const parts = message.split(":");
+            if (parts.length >= 2) {
+                const emoji = parts[1];
+                const gestureName = parts[2] || "";
+                showGestureAnimation(emoji, gestureName);
+            }
+        } else if (message.includes("🆔")) {
                 log("🆔 ID de conexión recibido:", message);
                 // Si el mensaje contiene un ID de conexión, actualizar el badge a conectado
                 const connectionIdReceived = message.split("🆔 ")[1];
@@ -219,6 +241,42 @@ async function createPeerConnection(localStream = null) {
             }
         };
     };
+}
+
+// Función para mostrar animación de gesto sobre el video remoto
+function showGestureAnimation(emoji, gestureName = '') {
+    // Buscar el contenedor del video remoto
+    const remoteVideoWrapper = document.querySelector('#remoteVideo').parentElement;
+    
+    if (!remoteVideoWrapper) {
+        console.log('⚠️ No se encontró el contenedor del video remoto');
+        return;
+    }
+    
+    // Crear elemento de animación
+    const animationElement = document.createElement('div');
+    animationElement.className = 'gesture-animation';
+    animationElement.textContent = emoji;
+    animationElement.title = `Gesto detectado: ${gestureName}`;
+    
+    // Posición ligeramente aleatoria para variedad
+    const randomX = Math.random() * 40 - 20; // -20px a +20px
+    const randomY = Math.random() * 40 - 20; // -20px a +20px
+    animationElement.style.top = `calc(50% + ${randomY}px)`;
+    animationElement.style.left = `calc(50% + ${randomX}px)`;
+    
+    // Agregar al contenedor del video remoto
+    remoteVideoWrapper.appendChild(animationElement);
+    
+    // Log para debug
+    log(`🎭 Mostrando animación: ${emoji} (${gestureName})`);
+    
+    // Remover el elemento después de la animación
+    setTimeout(() => {
+        if (animationElement.parentNode) {
+            animationElement.parentNode.removeChild(animationElement);
+        }
+    }, 4000); // 4 segundos = duración de la animación CSS
 }
 
 // Negociar la conexión WebRTC con el servidor
@@ -347,5 +405,11 @@ function updateGestureButton() {
         button.textContent = gestureAnalysisActive ? '⏸️ Detener Gestos' : '🤏 Analizar Gestos';
         button.style.backgroundColor = gestureAnalysisActive ? '#dc3545' : '#28a745';
     }
+}
+
+// Función de prueba para verificar las animaciones
+function testGestureAnimation() {
+    console.log("🧪 Probando animación de gesto...");
+    showGestureAnimation("👍", "test_gesture");
 }
 

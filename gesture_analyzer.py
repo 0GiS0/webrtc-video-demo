@@ -115,20 +115,19 @@ class GestureAnalysisTrack(VideoStreamTrack):
             console.log(f"🧠 Modelo para analizar {os.getenv('MODEL')}")
             console.log(f"🧠 Endpoint para analizar {os.getenv('ENDPOINT_URL')}")
             
-            
             # Medir tiempo de respuesta
             start_time = time.time()
-            console.log(f"🕒 Enviando imagen a OpenAI para análisis...")
+            console.log(f"🕒 Enviando imagen ({len(image_base64)} chars) a OpenAI para análisis...")
             
             response = client.chat.completions.create(
-                model=os.getenv("MODEL"),
+                model="openai/gpt-4.1-mini",
                 messages=[
                     {
                         "role": "user",
                         "content": [
                             {
                                 "type": "text",
-                                "text": """🤏 Analiza esta imagen y detecta gestos de manos.
+                                "text": """🤏 Analiza esta imagen y detecta gestos de manos claramente visibles.
                                 
                                 Responde ÚNICAMENTE con un JSON válido en este formato:
                                 {
@@ -138,19 +137,24 @@ class GestureAnalysisTrack(VideoStreamTrack):
                                     "emoji": "👍"
                                 }
                                 
-                                Gestos a detectar:
-                                - 👍 pulgar_arriba
-                                - 👎 pulgar_abajo  
-                                - 👌 ok
-                                - ✌️ paz
-                                - ✊ puño
-                                - ✋ stop
-                                - 👋 saludo
-                                - 🤟 rock
-                                - 🤏 pellizco
-                                - 👏 aplauso
+                                Gestos a detectar (solo si son muy claros y evidentes):
+                                - 👍 pulgar_arriba (pulgar hacia arriba, otros dedos cerrados)
+                                - 👎 pulgar_abajo (pulgar hacia abajo, otros dedos cerrados)
+                                - 👌 ok (círculo con pulgar e índice, otros dedos extendidos)
+                                - ✌️ victoria (índice y medio extendidos en V, otros cerrados)
+                                - ✊ puño (todos los dedos cerrados en puño)
+                                - ✋ stop (palma abierta hacia la cámara, dedos extendidos)
+                                - 👋 saludo (mano abierta moviéndose o en posición de saludo)
+                                - 🤟 rock (meñique, índice y pulgar extendidos)
+                                - 🤏 pellizco (pulgar e índice casi tocándose)
+                                - 👏 aplauso (dos manos aplaudiendo o palmas juntas)
+                                - 🤝 apretón (dos manos juntas en saludo)
+                                - 🙏 gracias (palmas juntas en posición de oración)
+                                - 🤘 rock_on (índice y meñique extendidos)
+                                - 🫶 corazón (manos formando un corazón)
+                                - 👊 puño_cerrado (puño hacia adelante)
                                 
-                                Si no hay gestos claros, usa "gesture": null"""
+                                IMPORTANTE: Solo detecta gestos si la confianza es mayor al 70%. Si no hay gestos claros o la imagen es borrosa, usa "gesture": null"""
                             },
                             {
                                 "type": "image_url",
@@ -192,16 +196,27 @@ class GestureAnalysisTrack(VideoStreamTrack):
             return
             
         try:
+            # Mensaje para el chat normal
             gesture_msg = (
                 f"🤏 IA detectó: {result.get('emoji', '🤏')} {result['gesture']} "
                 f"({result['confidence']}% confianza) - {result.get('description', '')}"
             )
             
+            # Mensaje especial para activar animación
+            animation_msg = f"GESTURE_ANIMATION:{result.get('emoji', '🤏')}:{result['gesture']}"
+            
+            console.log(f"📤 Enviando mensaje de gesto: {gesture_msg}")
+            console.log(f"📤 Enviando mensaje de animación: {animation_msg}")
+            console.log(f"📡 Estado del canal: readyState={getattr(self.data_channel, 'readyState', 'unknown')}")
+            
             self.data_channel.send(gesture_msg)
-            console.log(f"🤏 Gesto enviado a {self.peer_connection_id}: {result['gesture']}")
+            self.data_channel.send(animation_msg)
+            console.log(f"✅ Mensajes enviados exitosamente a {self.peer_connection_id}")
             
         except Exception as e:
             console.log(f"❌ Error enviando gesto a {self.peer_connection_id}: {e}")
+            import traceback
+            console.log(f"📍 Traceback completo: {traceback.format_exc()}")
     
     def set_data_channel(self, channel):
         """Establece el canal de datos para enviar resultados"""
@@ -212,11 +227,19 @@ class GestureAnalysisTrack(VideoStreamTrack):
         """Activa el análisis de gestos"""
         self.analysis_enabled = True
         console.log(f"🟢 Análisis de gestos activado para {self.peer_connection_id}")
+        
         # Enviar mensaje de prueba inmediatamente
         if self.data_channel:
             test_msg = f"🤏 ¡Análisis de gestos iniciado! Canal OK para {self.peer_connection_id}"
             self.data_channel.send(test_msg)
             console.log(f"✅ Mensaje de prueba enviado: {test_msg}")
+            
+            # Enviar también una animación de prueba
+            test_animation = "GESTURE_ANIMATION:🎯:test_activation"
+            self.data_channel.send(test_animation)
+            console.log(f"🎯 Animación de prueba enviada: {test_animation}")
+        else:
+            console.log(f"❌ No hay canal de datos disponible para enviar mensaje de prueba")
     
     def disable_analysis(self):
         """Desactiva el análisis de gestos"""
@@ -283,8 +306,7 @@ class GestureAnalysisTrack(VideoStreamTrack):
             
             console.log(f"📸 Frame procesado: {new_width}x{new_height}, {len(img_base64)} chars")
             
-            # Analizar con OpenAI (esta parte sigue siendo asíncrona)
-            return asyncio.run(self.analyze_with_openai(img_base64))
+            return {'image_base64': img_base64}
             
         except Exception as e:
             console.log(f"❌ Error procesando frame: {e}")
