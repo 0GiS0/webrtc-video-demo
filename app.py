@@ -17,7 +17,7 @@ from gesture_analyzer import GestureAnalysisTrack
 
 
 # Cargar variables de entorno desde el archivo .env
-load_dotenv()
+load_dotenv(override=True)
 
 # Crear cliente de OpenAI
 # Asegúrate de tener las variables de entorno ENDPOINT_URL y API_KEY configuradas
