@@ -381,35 +381,3 @@ function toggleChat() {
         toggleButton.innerHTML = "📝 Mostrar Chat";
     }
 }
-
-// Función simplificada para controlar el análisis
-function toggleGestureAnalysis() {
-    if (!dataChannel || dataChannel.readyState !== 'open') {
-        log('⚠️ Conecta primero antes de activar análisis de gestos');
-        return;
-    }
-    
-    // Enviar comando al servidor
-    const command = gestureAnalysisActive ? 'stop_gesture_analysis' : 'start_gesture_analysis';
-    dataChannel.send(`🤏 ${command}`);
-    
-    gestureAnalysisActive = !gestureAnalysisActive;
-    updateGestureButton();
-    
-    log(`🤏 Análisis de gestos ${gestureAnalysisActive ? 'iniciado' : 'detenido'}`);
-}
-
-function updateGestureButton() {
-    const button = document.getElementById('gestureToggle');
-    if (button) {
-        button.textContent = gestureAnalysisActive ? '⏸️ Detener Gestos' : '🤏 Analizar Gestos';
-        button.style.backgroundColor = gestureAnalysisActive ? '#dc3545' : '#28a745';
-    }
-}
-
-// Función de prueba para verificar las animaciones
-function testGestureAnimation() {
-    console.log("🧪 Probando animación de gesto...");
-    showGestureAnimation("👍", "test_gesture");
-}
-

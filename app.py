@@ -39,6 +39,8 @@ media_relay = MediaRelay()
 
 OUTPUT_DIR = os.path.join(ROOT, 'recordings')
 
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
 
 # Función para enviar mensajes periódicos
 async def send_periodic_messages(channel, peer_connection_id):
@@ -198,9 +200,7 @@ async def offer(request):
 
     console.log(f"📝 Respuesta SDP: {peer_connection.localDescription.sdp}")
     
-    # Comenzar la grabación de medios
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
+    # Comenzar la grabación de medios   
     await peer_connection.recorder.start()
     console.log(f"🎥 Grabación iniciada para {peer_connection_id} en {OUTPUT_DIR}")
     
