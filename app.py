@@ -4,7 +4,7 @@ import datetime
 import socket
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription
-from aiortc.contrib.media import MediaRelay
+from aiortc.contrib.media import MediaRelay, MediaRecorder
 from rich.console import Console
 from aiohttp import web
 import os
@@ -36,6 +36,9 @@ active_connections = set()
 
 # Media relay para manejar múltiples flujos de medios
 media_relay = MediaRelay()
+
+OUTPUT_DIR = os.path.join(ROOT, 'recordings')
+
 
 # Función para enviar mensajes periódicos
 async def send_periodic_messages(channel, peer_connection_id):
@@ -106,6 +109,9 @@ async def offer(request):
     # Almacenar el canal de datos en el peer_connection para acceso global
     peer_connection.data_channel = data_channel
 
+    # MediaRecorder para grabar audio y video
+    peer_connection.recorder = MediaRecorder(f"{OUTPUT_DIR}/{peer_connection_id}.mp4", format='mp4')
+
     # Este evento se dispara cuando se crea un canal de datos
     @peer_connection.on('datachannel')
     def on_data_channel(channel):
@@ -145,24 +151,43 @@ async def offer(request):
     def on_track(track):
         console.log(f"🎵 Pista recibida: {track.kind}")
         
+        # Grabar la pista de audio y video en un archivo
+        if track.kind == 'audio':
+            
+            console.log(f"🎤 Grabando audio para {peer_connection_id}")            
+            # Iniciar grabación de audio
+            peer_connection.recorder.addTrack(track)
+
         # Analizar video en busca de gestos o acciones
         if track.kind == 'video':
-            console.log("📹 Procesando video para detección de gestos...")           
+            console.log(f"Grabando video para {peer_connection_id}")
             
+            # Iniciar grabación de video
+            peer_connection.recorder.addTrack(track)
+            
+            # Suscribirse a la pista de video para recibir los frames
             media_relay.subscribe(track)
+            # Añadir la pista de video al peer connection
+            console.log(f"📹 Añadiendo pista de video al peer connection: {peer_connection_id}")
             peer_connection.addTrack(track)
             
             console.log("✅ Pista de video añadida al peer connection")
 
             @track.on('ended')
-            def on_track_ended():
-                console.log("🔴 Pista de video finalizada")            
+            async def on_track_ended():
+                console.log("🔴 Pista de video finalizada")
+                
+                # Se detiene la grabación de medios
+                console.log(f"🛑 Deteniendo grabación de medios para {peer_connection_id}")
+                await peer_connection.recorder.stop()
+                console.log(f"🎥 Grabación finalizada para {peer_connection_id} en {OUTPUT_DIR}")
+                
+                
                 # Se elimina al peer de la lista de conexiones activas
                 console.log(f"🗑️ Eliminando {peer_connection_id} de conexiones activas")
                 active_connections.discard(peer_connection_id)
                 console.log(f"📊 Conexiones activas: {len(active_connections)}")
 
-        
 
     # Se establece la descripción remota. Es decir, la oferta SDP que se recibe del cliente.
     await peer_connection.setRemoteDescription(offer_sdp)
@@ -172,6 +197,12 @@ async def offer(request):
     await peer_connection.setLocalDescription(answer)
 
     console.log(f"📝 Respuesta SDP: {peer_connection.localDescription.sdp}")
+    
+    # Comenzar la grabación de medios
+    if not os.path.exists(OUTPUT_DIR):
+        os.makedirs(OUTPUT_DIR)
+    await peer_connection.recorder.start()
+    console.log(f"🎥 Grabación iniciada para {peer_connection_id} en {OUTPUT_DIR}")
     
     # La respuesta se envía al cliente con la SDP generada
     return web.Response(
