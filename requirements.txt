@@ -1,4 +1,4 @@
-aiohttp==3.12.12
+aiohttp==3.12.13
 aiortc==1.13.0
 rich==14.0.0
 python-dotenv==1.1.0

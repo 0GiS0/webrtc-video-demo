@@ -21,17 +21,23 @@
 <body>
     <h1>💬 WebRTC Chat con IA 🤖</h1>
 
-    <button id="start" onclick="start()">Iniciar conexión 🚀</button>
+    <button id="start">Iniciar conexión 🚀</button>
 
     <!-- Contenedor de videos -->
     <div id="video-container">
-        <div class="video-wrapper">
-            <video id="localVideo" autoplay muted playsinline></video>
-            <div class="video-label">📹 Video Local</div>           
+        <div id="camara-section" style="display: flex; align-items: center; gap: 12px; margin-bottom: 18px; justify-content: center; width: 100%;">
+            <label for="camera-select" style="font-weight: 500; color: #007AFF; margin-right: 8px;">Cámara:</label>
+            <select id="camera-select"></select>
         </div>
-        <div class="video-wrapper">
-            <video id="remoteVideo" autoplay playsinline></video>
-            <div class="video-label">📺 Video Remoto</div>            
+        <div style="display: flex; gap: 20px; justify-content: center;">
+            <div class="video-wrapper">
+                <video id="localVideo" autoplay muted playsinline></video>
+                <div class="video-label">📹 Video Local</div>           
+            </div>
+            <div class="video-wrapper">
+                <video id="remoteVideo" autoplay playsinline></video>
+                <div class="video-label">📺 Video Remoto</div>            
+            </div>
         </div>
     </div>
 

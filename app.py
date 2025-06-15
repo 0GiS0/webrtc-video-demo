@@ -32,7 +32,7 @@ console = Console()
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # Diccionario para almacenar conexiones activas
-active_connections = set()
+active_connections = {}
 
 # Media relay para manejar múltiples flujos de medios
 media_relay = MediaRelay()
@@ -60,7 +60,7 @@ async def send_periodic_messages(channel, peer_connection_id):
                 console.log(f"🔴 Canal cerrado para {peer_connection_id}, deteniendo mensajes automáticos")
                 # Si el canal está cerrado, se elimina al peer de la lista de conexiones activas
                 console.log(f"🗑️ Eliminando {peer_connection_id} de conexiones activas")
-                active_connections.discard(peer_connection_id)
+                active_connections.pop(peer_connection_id, None)
                 console.log(f"📊 Conexiones activas: {len(active_connections)}")
                 break
                 
@@ -91,8 +91,7 @@ async def offer(request):
 
     peer_connection_id = f"peer_connection_{id(peer_connection)}"
 
-    active_connections.add(peer_connection_id)
-
+    active_connections[peer_connection_id] = peer_connection
     console.log(f"📊 Conexiones activas: {len(active_connections)}")
     console.log(f"🆔 ID de conexión peer: {peer_connection_id}")
 
@@ -140,7 +139,7 @@ async def offer(request):
                     
             # Se elimina al peer de la lista de conexiones activas
             console.log(f"🗑️ Eliminando {peer_connection_id} de conexiones activas")
-            active_connections.discard(peer_connection_id)
+            active_connections.pop(peer_connection_id, None)
             console.log(f"📊 Conexiones activas: {len(active_connections)}")
 
     # Eventos para manejar el estado de la conexión
@@ -170,10 +169,10 @@ async def offer(request):
             # Suscribirse a la pista de video para recibir los frames
             media_relay.subscribe(track)
             # Añadir la pista de video al peer connection
-            console.log(f"📹 Añadiendo pista de video al peer connection: {peer_connection_id}")
+            console.log(f"📹 Añadiendo pista de video al peer_connection: {peer_connection_id}")
             peer_connection.addTrack(track)
             
-            console.log("✅ Pista de video añadida al peer connection")
+            console.log("✅ Pista de video añadida al peer_connection")
 
             @track.on('ended')
             async def on_track_ended():
@@ -182,12 +181,12 @@ async def offer(request):
                 # Se detiene la grabación de medios
                 console.log(f"🛑 Deteniendo grabación de medios para {peer_connection_id}")
                 await peer_connection.recorder.stop()
-                console.log(f"🎥 Grabación finalizada para {peer_connection_id} en {OUTPUT_DIR}")
+                console.log(f"🎥 Grabación finalizada para {peer_connection_id} en {OUTPUT_DIR}/{peer_connection_id}.mp4")
                 
                 
                 # Se elimina al peer de la lista de conexiones activas
                 console.log(f"🗑️ Eliminando {peer_connection_id} de conexiones activas")
-                active_connections.discard(peer_connection_id)
+                active_connections.pop(peer_connection_id, None)
                 console.log(f"📊 Conexiones activas: {len(active_connections)}")
 
 
@@ -202,13 +201,36 @@ async def offer(request):
     
     # Comenzar la grabación de medios   
     await peer_connection.recorder.start()
-    console.log(f"🎥 Grabación iniciada para {peer_connection_id} en {OUTPUT_DIR}")
-    
+    console.log(f"🎥 Grabación iniciada para {peer_connection_id} en {OUTPUT_DIR}/{peer_connection_id}.mp4")
+
     # La respuesta se envía al cliente con la SDP generada
     return web.Response(
             content_type="application/json",
             text=json.dumps({"sdp": peer_connection.localDescription.sdp, "type": peer_connection.localDescription.type}),
         )
+
+async def stop(request):
+    """Endpoint para detener la grabación y limpiar recursos del peer activo"""
+    data = await request.json()
+    connection_id = data.get("connectionId")
+    pc = active_connections.get(connection_id)
+    if pc:
+        # Detener grabación si existe
+        if hasattr(pc, 'recorder') and pc.recorder:
+            try:
+                await pc.recorder.stop()
+            except Exception as e:
+                console.log(f"Error al detener la grabación: {e}")
+        # Cerrar la conexión WebRTC de forma ordenada
+        try:
+            await pc.close()
+            console.log(f"Conexión {connection_id} cerrada correctamente")
+        except Exception as e:
+            console.log(f"Error al cerrar la conexión: {e}")
+        # Eliminar del diccionario
+        active_connections.pop(connection_id, None)
+        return web.Response(text="ok")
+    return web.Response(status=404, text="not found")
 
 # Función para obtener la IP de la red privada
 def get_private_ip():
@@ -230,6 +252,7 @@ ssl_context.load_cert_chain(certfile='cert.pem', keyfile='key.pem')
 app.router.add_static('/static/', os.path.join(ROOT, 'static'), show_index=True)  # Archivos estáticos
 app.router.add_get('/', home)
 app.router.add_post('/offer', offer)
+app.router.add_post('/stop', stop)
 
 
 if __name__ == '__main__':

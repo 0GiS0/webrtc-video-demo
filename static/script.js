@@ -117,7 +117,7 @@ document.getElementById("message").addEventListener("keypress", (event) => {
     }
 });
 
-async function createPeerConnection(localStream = null) {
+async function createPeerConnection() {
     //1. Crear la conexión RTCPeerConnection y el canal de datos
     log("🚀 Iniciando conexión WebRTC");
 
@@ -130,6 +130,34 @@ async function createPeerConnection(localStream = null) {
 
     log("🔗 Conexión RTCPeerConnection creada");
 
+    // Solicitar acceso a la cámara y micrófono
+    log("🎥 Solicitando acceso a cámara y micrófono...");
+
+    log("📸 Recuperando la cámara seleccionada");
+    const cameraSelect = document.getElementById("camera-select");
+    if (!cameraSelect.value) {
+        log("⚠️ No se ha seleccionado una cámara. Usando la primera cámara disponible.");
+        cameraSelect.value = cameraSelect.options[0].value; // Seleccionar la primera cámara si no hay ninguna seleccionada
+    }
+    log("📸 Cámara seleccionada:", cameraSelect.value);
+
+    const constraints = {
+        video: {
+            deviceId: cameraSelect.value, // Usar la cámara seleccionada
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 }
+        },
+        audio: {
+            deviceId: "default", // Usar el dispositivo de audio por defecto
+            sampleRate: 44100,
+            channelCount: 2,
+            echoCancellation: true
+        }
+    };
+
+    const localStream = await navigator.mediaDevices.getUserMedia(constraints);
+
     // Si tenemos un stream local (video/audio), añadir los tracks
     if (localStream) {
         localStream.getTracks().forEach(track => {
@@ -137,6 +165,15 @@ async function createPeerConnection(localStream = null) {
         });
         log("📹 Tracks de video/audio añadidos a la conexión");
     }
+
+
+    // Mostrar video local
+        const videoElement = document.getElementById('localVideo');
+        if (videoElement) {
+            videoElement.srcObject = localStream;
+            videoElement.style.display = 'block';
+        }
+
 
     // Configurar el evento para recibir streams remotos
     peerConnection.ontrack = (event) => {
@@ -160,7 +197,7 @@ async function createPeerConnection(localStream = null) {
     dataChannel.onmessage = (event) => {
         const message = event.data;
         console.log("🔍 DEBUG: Mensaje recibido:", message); // DEBUG LOG
-        
+
         // Distinguir entre diferentes tipos de mensajes del servidor
         if (message.includes("🤖 Mensaje automático")) {
             log("🕐 Mensaje automático del servidor:", message);
@@ -221,16 +258,16 @@ async function createPeerConnection(localStream = null) {
             } else if (message.includes("🎉")) {
                 log("👋 Mensaje de bienvenida:", message);
             } else if (message.includes("🤏")) {
-            log("🤏 Análisis de gestos:", message);
-        } else if (message.startsWith("GESTURE_ANIMATION:")) {
-            // Manejar animación de gesto
-            const parts = message.split(":");
-            if (parts.length >= 2) {
-                const emoji = parts[1];
-                const gestureName = parts[2] || "";
-                showGestureAnimation(emoji, gestureName);
-            }
-        } else if (message.includes("🆔")) {
+                log("🤏 Análisis de gestos:", message);
+            } else if (message.startsWith("GESTURE_ANIMATION:")) {
+                // Manejar animación de gesto
+                const parts = message.split(":");
+                if (parts.length >= 2) {
+                    const emoji = parts[1];
+                    const gestureName = parts[2] || "";
+                    showGestureAnimation(emoji, gestureName);
+                }
+            } else if (message.includes("🆔")) {
                 log("🆔 ID de conexión recibido:", message);
                 // Si el mensaje contiene un ID de conexión, actualizar el badge a conectado
                 const connectionIdReceived = message.split("🆔 ")[1];
@@ -247,30 +284,30 @@ async function createPeerConnection(localStream = null) {
 function showGestureAnimation(emoji, gestureName = '') {
     // Buscar el contenedor del video remoto
     const remoteVideoWrapper = document.querySelector('#remoteVideo').parentElement;
-    
+
     if (!remoteVideoWrapper) {
         console.log('⚠️ No se encontró el contenedor del video remoto');
         return;
     }
-    
+
     // Crear elemento de animación
     const animationElement = document.createElement('div');
     animationElement.className = 'gesture-animation';
     animationElement.textContent = emoji;
     animationElement.title = `Gesto detectado: ${gestureName}`;
-    
+
     // Posición ligeramente aleatoria para variedad
     const randomX = Math.random() * 40 - 20; // -20px a +20px
     const randomY = Math.random() * 40 - 20; // -20px a +20px
     animationElement.style.top = `calc(50% + ${randomY}px)`;
     animationElement.style.left = `calc(50% + ${randomX}px)`;
-    
+
     // Agregar al contenedor del video remoto
     remoteVideoWrapper.appendChild(animationElement);
-    
+
     // Log para debug
     log(`🎭 Mostrando animación: ${emoji} (${gestureName})`);
-    
+
     // Remover el elemento después de la animación
     setTimeout(() => {
         if (animationElement.parentNode) {
@@ -331,53 +368,107 @@ async function negotiate() {
 }
 
 // Esta función se ejecuta cuando se hace clic en el botón "Iniciar conexión"
+let sessionActive = false;
+let localStream = null;
+
 async function start() {
     // Mostrar badge de conectando desde el inicio
     showConnectingBadge();
-    
+
     // Abrir automáticamente la sección del chat al iniciar conexión
     const chatContent = document.getElementById("chat-content");
     const toggleButton = document.getElementById("toggle-chat");
-    
+
     if (chatContent.classList.contains("collapsed")) {
         chatContent.classList.remove("collapsed");
         toggleButton.innerHTML = "📝 Ocultar Chat";
         log("💬 Chat abierto al iniciar conexión");
     }
-    
+
     try {
         // Solicitar acceso a la cámara y micrófono
         log("🎥 Solicitando acceso a cámara y micrófono...");
-        const localStream = await navigator.mediaDevices.getUserMedia({ 
-            video: true, 
-            audio: true 
-        });
-        
-        // Mostrar el video local
-        const localVideo = document.getElementById("localVideo");
-        localVideo.srcObject = localStream;
-        log("✅ Video local iniciado");
-        
+        const cameraSelect = document.getElementById("camera-select");
+        const constraints = {
+            video: { deviceId: cameraSelect.value, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } },
+            audio: { deviceId: "default", sampleRate: 44100, channelCount: 2, echoCancellation: true }
+        };
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        document.getElementById("localVideo").srcObject = localStream;
         await createPeerConnection(localStream);
         await negotiate();
+        sessionActive = true;
+        updateStartButton();
     } catch (error) {
         log("❌ Error accediendo a medios:", error.message);
-        // Si no hay acceso a video, continuar solo con chat
         await createPeerConnection();
         await negotiate();
+        sessionActive = true;
+        updateStartButton();
     }
 }
 
-// Función para colapsar/expandir el chat
-function toggleChat() {
-    const chatContent = document.getElementById("chat-content");
-    const toggleButton = document.getElementById("toggle-chat");
-    
-    if (chatContent.classList.contains("collapsed")) {
-        chatContent.classList.remove("collapsed");
-        toggleButton.innerHTML = "📝 Ocultar Chat";
+async function stopSession() {
+    log("🛑 Cerrando sesión y grabación...");
+    // Avisar al servidor para que detenga la grabación
+    try {
+        await fetch("/stop", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ connectionId })
+        });
+        log("📡 Aviso de parada enviado al servidor");
+    } catch (e) {
+        log("⚠️ No se pudo avisar al servidor para detener la grabación", e);
+    }
+    if (peerConnection) {
+        peerConnection.getSenders().forEach(sender => {
+            if (sender.track) sender.track.stop();
+        });
+        peerConnection.close();
+        peerConnection = null;
+    }
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    document.getElementById("localVideo").srcObject = null;
+    document.getElementById("remoteVideo").srcObject = null;
+    sessionActive = false;
+    updateStartButton();
+    log("✅ Sesión finalizada y recursos liberados.");
+}
+
+function updateStartButton() {
+    const startButton = document.getElementById("start");
+    if (sessionActive) {
+        startButton.textContent = "Detener sesión 🛑";
+        startButton.onclick = stopSession;
     } else {
-        chatContent.classList.add("collapsed");
-        toggleButton.innerHTML = "📝 Mostrar Chat";
+        startButton.textContent = "Iniciar conexión 🚀";
+        startButton.onclick = start;
     }
 }
+
+async function init() {
+    // Recuperar todas las cámaras disponibles
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    log("📸 Dispositivos de medios disponibles:", devices);
+    const cameraSelect = document.getElementById("camera-select");
+    cameraSelect.innerHTML = '';
+    devices.filter(device => device.kind === 'videoinput').forEach(device => {
+        const option = document.createElement("option");
+        option.value = device.deviceId;
+        option.textContent = device.label || `Cámara ${cameraSelect.options.length + 1}`;
+        cameraSelect.appendChild(option);
+    });
+}
+
+window.addEventListener("load", async () => {
+    await init();
+    updateStartButton();
+
+    // Configurar el botón de colapsar/expandir chat
+    const toggleButton = document.getElementById("toggle-chat");
+    toggleButton.addEventListener("click", toggleChat);
+});
