@@ -11,18 +11,11 @@ import os
 import json
 
 from dotenv import load_dotenv
-from openai import OpenAI
 
 
 # Cargar variables de entorno desde el archivo .env
 load_dotenv(override=True)
 
-# Crear cliente de OpenAI
-# Asegúrate de tener las variables de entorno ENDPOINT_URL y API_KEY configuradas
-client = OpenAI(
-    base_url=os.getenv("ENDPOINT_URL"),
-    api_key=os.getenv("API_KEY")
-)
 
 # Crea la aplicación web con aiohttp
 app = web.Application()
