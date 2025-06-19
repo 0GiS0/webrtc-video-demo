@@ -1,18 +1,36 @@
-# Cómo funciona WebRTC 🚀
+# Enviar vídeo 📹 y audio 🔊 a través de WebRTC
 
-¡Hola developer 👋🏻! En este repo quiero mostrarte de forma sencilla cómo funciona WebRTC con el ejemplo más básico: negociar una conexión y crear un canal de datos bidireccional como haríamos por ejemplo con WebSockets. El objetivo es que veas de forma clara cuáles son los pasos que se deben dar con el objetivo de que entiendas bien el proceso para luego seguir avanzando en escenarios
-más "complejos" como conectar dos navegadores entre sí, enviar audio y vídeo, etc.
+¡Hola developer 👋🏻! En este branch del repo puedes ver cómo enviar vídeo y audio en tiempo real usando WebRTC y forma parte de mi vídeo [Enviar vídeo 📹 y audio 🔊 a través de WebRTC | Cap. 2](https://youtu.be/JPpmUoAlVRI)
 
-## ¿Qué es WebRTC? 🌐
+[![enviar vídeo y audio a través de webrtc](https://github.com/user-attachments/assets/5330a7aa-82c4-4f88-a837-ab5747c5dbb7)](https://youtu.be/JPpmUoAlVRI)
 
-WebRTC (Web Real-Time Communication) es una tecnología que permite la comunicación en tiempo real entre navegadores web y aplicaciones móviles. Facilita la transmisión de audio, vídeo y datos directamente entre pares sin necesidad de un servidor intermediario.
 
-## ¿Cómo funciona? 🔄
+## ¿Cómo funciona?
 
-WebRTC utiliza un proceso de negociación entre dos pares para establecer una conexión directa. Este proceso incluye:
-1. **Intercambio de ofertas y respuestas (SDP)**: Los pares intercambian información sobre sus capacidades de medios y red.
-2. **Intercambio de candidatos ICE**: Los pares intercambian información sobre las direcciones IP y puertos que pueden utilizar para comunicarse.
-3. **Establecimiento de la conexión**: Una vez que ambos pares tienen la información necesaria, pueden establecer una conexión directa y comenzar a intercambiar datos.
+1. **Captura de medios**  
+   El navegador solicita acceso a la cámara y micrófono del usuario usando la API getUserMedia. Así se obtiene el stream de vídeo y audio local.
+
+2. **Conexión peer-to-peer (P2P)**  
+   Se establece una conexión directa entre navegadores usando RTCPeerConnection de WebRTC. Esto permite enviar el vídeo y audio capturados de un usuario a otro sin pasar por un servidor intermedio.
+
+3. **Intercambio de señalización**  
+   Para que los dos puntos puedan conectarse, primero intercambian mensajes de señalización (SDP y ICE candidates). En esta demo, el intercambio se realiza a través de un servidor de señalización simple (por ejemplo, usando Python/AIOHTTP y HTTP).
+
+4. **Transmisión en tiempo real**  
+   Una vez negociada la conexión, el vídeo y audio fluyen directamente entre los peers. La transmisión es segura y con baja latencia.
+
+5. **Visualización**  
+   Los streams de vídeo local y remoto se muestran en la interfaz web usando etiquetas `<video>`, permitiendo la comunicación visual y auditiva en tiempo real.
+
+## Tecnologías utilizadas
+
+- WebRTC (JavaScript) para la comunicación en tiempo real
+- Python (AIOHTTP) para la señalización (negociación inicial)
+- HTML/CSS para la interfaz
+
+---
+
+¿Te gustaría añadir instrucciones para ejecutar la demo o detalles sobre dependencias? Si necesitas la sección de instalación o uso, dime y te ayudo a escribirla.
 
 ## ¿Qué necesitas para empezar? 🛠️
 
